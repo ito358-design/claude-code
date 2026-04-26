@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>タイマー</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #1a1a2e;
+      color: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .container {
+      text-align: center;
+      padding: 40px;
+    }
+
+    h1 {
+      font-size: 1.2rem;
+      letter-spacing: 0.2em;
+      color: #a0a0c0;
+      margin-bottom: 40px;
+      text-transform: uppercase;
+    }
+
+    .display {
+      font-size: 6rem;
+      font-weight: 200;
+      letter-spacing: 0.05em;
+      font-variant-numeric: tabular-nums;
+      color: #e0e0ff;
+      margin-bottom: 20px;
+      transition: color 0.3s;
+    }
+
+    .display.warning { color: #ff9944; }
+    .display.danger  { color: #ff4444; }
+
+    .progress-ring {
+      position: relative;
+      width: 280px;
+      height: 280px;
+      margin: 0 auto 40px;
+    }
+
+    .progress-ring svg {
+      transform: rotate(-90deg);
+    }
+
+    .progress-ring .track {
+      fill: none;
+      stroke: #2a2a4a;
+      stroke-width: 8;
+    }
+
+    .progress-ring .bar {
+      fill: none;
+      stroke: #6666ff;
+      stroke-width: 8;
+      stroke-linecap: round;
+      transition: stroke-dashoffset 1s linear, stroke 0.3s;
+    }
+
+    .display-inner {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    .set-time {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      align-items: center;
+      margin-bottom: 40px;
+    }
+
+    .set-time input {
+      width: 70px;
+      padding: 10px;
+      font-size: 1.2rem;
+      text-align: center;
+      background: #2a2a4a;
+      border: 1px solid #4444aa;
+      border-radius: 8px;
+      color: #fff;
+      outline: none;
+    }
+
+    .set-time input:focus { border-color: #6666ff; }
+
+    .set-time span {
+      color: #a0a0c0;
+      font-size: 1.2rem;
+    }
+
+    .buttons {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+    }
+
+    button {
+      padding: 14px 36px;
+      font-size: 1rem;
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      transition: transform 0.1s, opacity 0.2s;
+    }
+
+    button:active { transform: scale(0.96); }
+
+    #btnStart {
+      background: #6666ff;
+      color: #fff;
+    }
+
+    #btnStart:hover { background: #7777ff; }
+
+    #btnReset {
+      background: #2a2a4a;
+      color: #a0a0c0;
+    }
+
+    #btnReset:hover { background: #3a3a5a; }
+
+    .done-msg {
+      display: none;
+      font-size: 1.4rem;
+      color: #ffdd44;
+      margin-top: 20px;
+      animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>タイマー</h1>
+
+  <div class="progress-ring">
+    <svg width="280" height="280" viewBox="0 0 280 280">
+      <circle class="track" cx="140" cy="140" r="126"/>
+      <circle class="bar"   cx="140" cy="140" r="126" id="progressBar"/>
+    </svg>
+    <div class="display-inner">
+      <div class="display" id="display">00:00</div>
+    </div>
+  </div>
+
+  <div class="set-time">
+    <input type="number" id="inputMin" min="0" max="99" value="1" placeholder="分">
+    <span>分</span>
+    <input type="number" id="inputSec" min="0" max="59" value="0" placeholder="秒">
+    <span>秒</span>
+  </div>
+
+  <div class="buttons">
+    <button id="btnStart">スタート</button>
+    <button id="btnReset">リセット</button>
+  </div>
+
+  <div class="done-msg" id="doneMsg">⏰ 時間です！</div>
+</div>
+
+<script>
+  const display   = document.getElementById('display');
+  const btnStart  = document.getElementById('btnStart');
+  const btnReset  = document.getElementById('btnReset');
+  const doneMsg   = document.getElementById('doneMsg');
+  const bar       = document.getElementById('progressBar');
+  const inputMin  = document.getElementById('inputMin');
+  const inputSec  = document.getElementById('inputSec');
+
+  const circumference = 2 * Math.PI * 126;
+  bar.style.strokeDasharray  = circumference;
+  bar.style.strokeDashoffset = 0;
+
+  let total    = 0;
+  let remaining = 0;
+  let timer    = null;
+  let running  = false;
+
+  function pad(n) { return String(n).padStart(2, '0'); }
+
+  function updateDisplay() {
+    const m = Math.floor(remaining / 60);
+    const s = remaining % 60;
+    display.textContent = `${pad(m)}:${pad(s)}`;
+
+    const ratio = total > 0 ? remaining / total : 1;
+    bar.style.strokeDashoffset = circumference * (1 - ratio);
+
+    display.className = 'display';
+    bar.style.stroke  = '#6666ff';
+    if (remaining <= 10 && remaining > 0) {
+      display.classList.add('danger');
+      bar.style.stroke = '#ff4444';
+    } else if (remaining <= 30) {
+      display.classList.add('warning');
+      bar.style.stroke = '#ff9944';
+    }
+  }
+
+  function start() {
+    if (!running) {
+      if (remaining === 0) {
+        const m = parseInt(inputMin.value) || 0;
+        const s = parseInt(inputSec.value) || 0;
+        total = m * 60 + s;
+        remaining = total;
+        if (remaining === 0) return;
+      }
+      running = true;
+      btnStart.textContent = '一時停止';
+      doneMsg.style.display = 'none';
+      timer = setInterval(tick, 1000);
+    } else {
+      pause();
+    }
+  }
+
+  function pause() {
+    clearInterval(timer);
+    running = false;
+    btnStart.textContent = '再開';
+  }
+
+  function tick() {
+    remaining--;
+    updateDisplay();
+    if (remaining <= 0) {
+      clearInterval(timer);
+      running = false;
+      btnStart.textContent = 'スタート';
+      doneMsg.style.display = 'block';
+    }
+  }
+
+  function reset() {
+    clearInterval(timer);
+    running = false;
+    remaining = 0;
+    total = 0;
+    btnStart.textContent = 'スタート';
+    display.textContent  = '00:00';
+    display.className    = 'display';
+    bar.style.stroke     = '#6666ff';
+    bar.style.strokeDashoffset = 0;
+    doneMsg.style.display = 'none';
+  }
+
+  btnStart.addEventListener('click', start);
+  btnReset.addEventListener('click', reset);
+
+  // Allow Enter key on inputs
+  [inputMin, inputSec].forEach(el => {
+    el.addEventListener('keydown', e => { if (e.key === 'Enter') start(); });
+  });
+</script>
+</body>
+</html>
