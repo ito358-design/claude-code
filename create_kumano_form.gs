@@ -30,6 +30,12 @@ function createKumanoForm() {
     .setChoiceValues(['1個', '2個', '3個以上'])
     .setRequired(true);
 
+  // 4. 「3個以上」の場合の個数（任意）
+  form.addTextItem()
+    .setTitle('「3個以上」を選んだ方の個数')
+    .setHelpText('3個以上を選ばれた方は、具体的な個数をご入力ください。')
+    .setRequired(false);
+
   Logger.log('編集用URL: ' + form.getEditUrl());
   Logger.log('回答用URL: ' + form.getPublishedUrl());
 }
